@@ -1,0 +1,226 @@
+<template>
+  <a-layout class="main-layout">
+    <a-layout-sider
+      v-model:collapsed="collapsed"
+      :trigger="null"
+      collapsible
+      width="250"
+      class="main-sidebar"
+    >
+      <div class="logo">
+        <h1 v-if="!collapsed">管理后台</h1>
+        <h1 v-else>后台</h1>
+      </div>
+      <a-menu
+        v-model:selectedKeys="selectedKeys"
+        theme="dark"
+        mode="inline"
+      >
+        <a-menu-item key="dashboard" @click="navigateTo('/dashboard')">
+          <template #icon>
+            <dashboard-outlined />
+          </template>
+          <span>仪表盘</span>
+        </a-menu-item>
+        <a-menu-item key="users" @click="navigateTo('/users')">
+          <template #icon>
+            <user-outlined />
+          </template>
+          <span>用户管理</span>
+        </a-menu-item>
+      </a-menu>
+    </a-layout-sider>
+    <a-layout>
+      <a-layout-header class="main-header">
+        <div class="header-left">
+          <menu-unfold-outlined
+            v-if="collapsed"
+            class="trigger"
+            @click="() => (collapsed = !collapsed)"
+          />
+          <menu-fold-outlined
+            v-else
+            class="trigger"
+            @click="() => (collapsed = !collapsed)"
+          />
+        </div>
+        <div class="header-right">
+          <a-dropdown>
+            <a class="ant-dropdown-link" @click.prevent>
+              <a-avatar>
+                <template #icon>
+                  <user-outlined />
+                </template>
+              </a-avatar>
+              <span class="username">{{ userName }}</span>
+              <down-outlined />
+            </a>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="profile">
+                  <user-outlined />
+                  个人资料
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="logout" @click="handleLogout">
+                  <logout-outlined />
+                  退出登录
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </div>
+      </a-layout-header>
+      <a-layout-content class="main-content">
+        <slot></slot>
+      </a-layout-content>
+      <a-layout-footer class="main-footer">
+        管理后台系统 ©{{ new Date().getFullYear() }} Created by Vue & Ant Design
+      </a-layout-footer>
+    </a-layout>
+  </a-layout>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useUserStore } from '@/store/user'
+import { 
+  MenuUnfoldOutlined, 
+  MenuFoldOutlined, 
+  DashboardOutlined, 
+  UserOutlined,
+  DownOutlined,
+  LogoutOutlined
+} from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+
+const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
+
+// 侧边栏折叠状态
+const collapsed = ref(false)
+
+// 当前选中的菜单项
+const selectedKeys = ref([])
+
+// 设置当前选中的菜单项
+watch(
+  () => route.path,
+  (path) => {
+    if (path.startsWith('/dashboard')) {
+      selectedKeys.value = ['dashboard']
+    } else if (path.startsWith('/users')) {
+      selectedKeys.value = ['users']
+    }
+  },
+  { immediate: true }
+)
+
+// 用户名称
+const userName = computed(() => {
+  return userStore.user?.email || '未知用户'
+})
+
+// 导航到指定路由
+const navigateTo = (path) => {
+  router.push(path)
+}
+
+// 处理登出
+const handleLogout = async () => {
+  const { error } = await userStore.logout()
+  
+  if (error) {
+    message.error('退出登录失败')
+  } else {
+    message.success('已退出登录')
+    router.push('/login')
+  }
+}
+</script>
+
+<style scoped>
+.main-layout {
+  min-height: 100vh;
+}
+
+.main-sidebar {
+  overflow: auto;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  z-index: 10;
+}
+
+.main-layout .main-sidebar .logo {
+  height: 64px;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.main-layout .main-sidebar .logo h1 {
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 1.2rem;
+}
+
+.main-header {
+  background: #fff;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+}
+
+.header-left {
+  margin-left: 16px;
+}
+
+.header-right {
+  margin-right: 16px;
+}
+
+.trigger {
+  padding: 0 24px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.trigger:hover {
+  color: #1890ff;
+}
+
+.username {
+  margin-left: 8px;
+  margin-right: 4px;
+}
+
+.main-content {
+  margin: 24px 16px;
+  padding: 24px;
+  background: #fff;
+  min-height: 280px;
+  overflow: initial;
+}
+
+.main-footer {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .main-sidebar {
+    position: absolute;
+  }
+}
+</style>
