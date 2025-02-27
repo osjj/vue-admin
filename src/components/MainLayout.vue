@@ -5,6 +5,7 @@
       :trigger="null"
       collapsible
       width="250"
+      collapsedWidth="80"
       class="main-sidebar"
     >
       <div class="logo">
@@ -30,7 +31,7 @@
         </a-menu-item>
       </a-menu>
     </a-layout-sider>
-    <a-layout>
+    <a-layout :style="{ marginLeft: collapsed ? '80px' : '250px', transition: 'margin-left 0.2s' }">
       <a-layout-header class="main-header">
         <div class="header-left">
           <menu-unfold-outlined
@@ -75,7 +76,7 @@
         <slot></slot>
       </a-layout-content>
       <a-layout-footer class="main-footer">
-        管理后台系统 ©{{ new Date().getFullYear() }} Created by Vue & Ant Design
+        管理后台系统 {{ new Date().getFullYear() }} Created by Vue & Ant Design
       </a-layout-footer>
     </a-layout>
   </a-layout>
@@ -151,7 +152,9 @@ const handleLogout = async () => {
   height: 100vh;
   position: fixed;
   left: 0;
+  top: 0;
   z-index: 10;
+  box-shadow: 2px 0 6px rgba(0, 21, 41, 0.35);
 }
 
 .main-layout .main-sidebar .logo {
@@ -180,6 +183,7 @@ const handleLogout = async () => {
   top: 0;
   z-index: 9;
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  width: 100%;
 }
 
 .header-left {
@@ -212,6 +216,7 @@ const handleLogout = async () => {
   background: #fff;
   min-height: 280px;
   overflow: initial;
+  width: calc(100% - 32px);
 }
 
 .main-footer {
@@ -221,6 +226,14 @@ const handleLogout = async () => {
 @media (max-width: 768px) {
   .main-sidebar {
     position: absolute;
+  }
+  
+  .main-layout .ant-layout {
+    margin-left: 0 !important;
+  }
+  
+  .main-layout .ant-layout-sider-collapsed + .ant-layout {
+    margin-left: 0 !important;
   }
 }
 </style>

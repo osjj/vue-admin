@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { auth } from '@/utils/supabase'
+import { auth, userApi } from '@/utils/supabase'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -59,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
   async function login(email, password) {
     setLoading(true)
     try {
+      // 首先进行身份验证
       const { data, error: authError } = await auth.signIn(email, password)
       
       if (authError) {
@@ -66,7 +67,25 @@ export const useUserStore = defineStore('user', () => {
       }
       
       if (data?.user) {
-        setUser(data.user)
+        // 验证用户是否为管理员角色
+        const { data: profile, error: profileError } = await userApi.getUserByEmail(email)
+        
+        if (profileError) {
+          throw new Error('获取用户资料失败')
+        }
+        
+        // 如果用户角色不是admin，则拒绝登录
+        if (profile?.role !== 'admin') {
+          // 登出用户，因为他们已经通过了身份验证但没有权限
+          await auth.signOut()
+          throw new Error('您没有访问管理后台的权限，请联系系统管理员')
+        }
+        
+        // 用户有admin权限，设置用户信息
+        setUser({
+          ...data.user,
+          role: profile.role
+        })
       }
       
       setLoading(false)

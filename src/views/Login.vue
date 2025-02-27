@@ -103,6 +103,7 @@ const onFinish = async (values) => {
   
   if (error) {
     console.error('Login error:', error)
+    message.error(error.message || '登录失败')
   } else {
     message.success('登录成功')
     router.push('/dashboard')

@@ -64,6 +64,15 @@ export const userApi = {
       .single()
   },
   
+  // 通过邮箱获取用户
+  async getUserByEmail(email) {
+    return await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .single()
+  },
+  
   // 更新用户
   async updateUser(id, userData) {
     return await supabase
