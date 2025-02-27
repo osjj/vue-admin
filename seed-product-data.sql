@@ -1,15 +1,15 @@
 -- 商品数据填充脚本
 
 -- 清空现有数据（如果需要）
--- DELETE FROM review_replies;
--- DELETE FROM product_reviews;
--- DELETE FROM product_images;
--- DELETE FROM product_skus;
--- DELETE FROM product_specifications;
--- DELETE FROM products;
--- DELETE FROM brand_category_relations;
--- DELETE FROM product_brands;
--- DELETE FROM product_categories;
+DELETE FROM review_replies;
+DELETE FROM product_reviews;
+DELETE FROM product_images;
+DELETE FROM product_skus;
+DELETE FROM product_specifications;
+DELETE FROM products;
+DELETE FROM brand_category_relations;
+DELETE FROM product_brands;
+DELETE FROM product_categories;
 
 -- 插入商品分类数据
 INSERT INTO product_categories (name, code, description, level, path, sort_order, status, is_featured, seo_title, seo_keywords, seo_description, created_at, updated_at)
