@@ -1,144 +1,141 @@
 <template>
-  <main-layout>
-    <div class="user-management-container">
-      <a-page-header
-        title="管理后台"
-        subtitle="用户管理"
-      >
-        <template #extra>
-          <a-button type="primary" @click="showCreateModal">
-            <template #icon>
-              <plus-outlined />
-            </template>
-            添加用户
-          </a-button>
-        </template>
-      </a-page-header>
-      
-      <a-divider />
-      
-      <!-- 用户搜索 -->
-      <a-form layout="inline" class="search-form">
-        <a-form-item label="邮箱">
-          <a-input
-            v-model:value="searchEmail"
-            placeholder="请输入邮箱"
-            allow-clear
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-button type="primary" @click="handleSearch">
-            <template #icon>
-              <search-outlined />
-            </template>
-            搜索
-          </a-button>
-          <a-button style="margin-left: 8px" @click="handleReset">
-            <template #icon>
-              <reload-outlined />
-            </template>
-            重置
-          </a-button>
-        </a-form-item>
-      </a-form>
-      
-      <!-- 用户列表 -->
-      <a-table
-        :columns="columns"
-        :data-source="filteredUsers"
-        :loading="loading"
-        row-key="id"
-        :pagination="{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`
-        }"
-      >
-        <!-- 状态列 -->
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status ? 'success' : 'default'">
-              {{ record.status ? '启用' : '禁用' }}
-            </a-tag>
-          </template>
-          
-          <!-- 角色列 -->
-          <template v-if="column.key === 'role'">
-            <a-tag :color="getRoleColor(record.role)">
-              {{ getRoleName(record.role) }}
-            </a-tag>
-          </template>
-          
-          <!-- 操作列 -->
-          <template v-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="showEditModal(record)">
-                编辑
-              </a-button>
-              <a-popconfirm
-                title="确定要删除此用户吗？"
-                ok-text="确定"
-                cancel-text="取消"
-                @confirm="handleDelete(record)"
-              >
-                <a-button type="link" size="small" danger>
-                  删除
-                </a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
-    </div>
-    
-    <!-- 创建/编辑用户弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalMode === 'create' ? '添加用户' : '编辑用户'"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
-      :confirm-loading="modalLoading"
+  <div class="user-management-container">
+    <a-page-header
+      title="管理后台"
+      subtitle="用户管理"
     >
-      <a-form
-        :model="userForm"
-        :rules="userFormRules"
-        ref="userFormRef"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-      >
-        <a-form-item name="email" label="邮箱">
-          <a-input v-model:value="userForm.email" placeholder="请输入邮箱" />
-        </a-form-item>
+      <template #extra>
+        <a-button type="primary" @click="showCreateModal">
+          <template #icon>
+            <plus-outlined />
+          </template>
+          添加用户
+        </a-button>
+      </template>
+    </a-page-header>
+    
+    <a-divider />
+    
+    <!-- 用户搜索 -->
+    <a-form layout="inline" class="search-form">
+      <a-form-item label="邮箱">
+        <a-input
+          v-model:value="searchEmail"
+          placeholder="请输入邮箱"
+          allow-clear
+        />
+      </a-form-item>
+      <a-form-item>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon>
+            <search-outlined />
+          </template>
+          搜索
+        </a-button>
+        <a-button style="margin-left: 8px" @click="handleReset">
+          <template #icon>
+            <reload-outlined />
+          </template>
+          重置
+        </a-button>
+      </a-form-item>
+    </a-form>
+    
+    <!-- 用户列表 -->
+    <a-table
+      :columns="columns"
+      :data-source="filteredUsers"
+      :loading="loading"
+      row-key="id"
+      :pagination="{
+        pageSize: 10,
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: (total) => `共 ${total} 条`
+      }"
+    >
+      <!-- 状态列 -->
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="record.status ? 'success' : 'default'">
+            {{ record.status ? '启用' : '禁用' }}
+          </a-tag>
+        </template>
         
-        <a-form-item name="password" label="密码" v-if="modalMode === 'create'">
-          <a-input-password v-model:value="userForm.password" placeholder="请输入密码" />
-        </a-form-item>
+        <!-- 角色列 -->
+        <template v-if="column.key === 'role'">
+          <a-tag :color="getRoleColor(record.role)">
+            {{ getRoleName(record.role) }}
+          </a-tag>
+        </template>
         
-        <a-form-item name="role" label="角色">
-          <a-select v-model:value="userForm.role" placeholder="请选择角色">
-            <a-select-option value="admin">管理员</a-select-option>
-            <a-select-option value="user">普通用户</a-select-option>
-            <a-select-option value="guest">访客</a-select-option>
-          </a-select>
-        </a-form-item>
-        
-        <a-form-item name="status" label="状态">
-          <a-switch
-            v-model:checked="userForm.status"
-            :checked-children="'启用'"
-            :un-checked-children="'禁用'"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </main-layout>
+        <!-- 操作列 -->
+        <template v-if="column.key === 'action'">
+          <a-space>
+            <a-button type="link" size="small" @click="showEditModal(record)">
+              编辑
+            </a-button>
+            <a-popconfirm
+              title="确定要删除此用户吗？"
+              ok-text="确定"
+              cancel-text="取消"
+              @confirm="handleDelete(record)"
+            >
+              <a-button type="link" size="small" danger>
+                删除
+              </a-button>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </template>
+    </a-table>
+  </div>
+  
+  <!-- 创建/编辑用户弹窗 -->
+  <a-modal
+    v-model:open="modalVisible"
+    :title="modalMode === 'create' ? '添加用户' : '编辑用户'"
+    @ok="handleModalOk"
+    @cancel="handleModalCancel"
+    :confirm-loading="modalLoading"
+  >
+    <a-form
+      :model="userForm"
+      :rules="userFormRules"
+      ref="userFormRef"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
+      <a-form-item name="email" label="邮箱">
+        <a-input v-model:value="userForm.email" placeholder="请输入邮箱" />
+      </a-form-item>
+      
+      <a-form-item name="password" label="密码" v-if="modalMode === 'create'">
+        <a-input-password v-model:value="userForm.password" placeholder="请输入密码" />
+      </a-form-item>
+      
+      <a-form-item name="role" label="角色">
+        <a-select v-model:value="userForm.role" placeholder="请选择角色">
+          <a-select-option value="admin">管理员</a-select-option>
+          <a-select-option value="user">普通用户</a-select-option>
+          <a-select-option value="guest">访客</a-select-option>
+        </a-select>
+      </a-form-item>
+      
+      <a-form-item name="status" label="状态">
+        <a-switch
+          v-model:checked="userForm.status"
+          :checked-children="'启用'"
+          :un-checked-children="'禁用'"
+        />
+      </a-form-item>
+    </a-form>
+  </a-modal>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import MainLayout from '@/components/MainLayout.vue'
 import { userApi, auth, supabase } from '@/utils/supabase'
 import { 
   PlusOutlined,

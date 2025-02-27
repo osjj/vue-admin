@@ -1,123 +1,120 @@
 <template>
-  <main-layout>
-    <div class="dashboard-container">
-      <a-page-header
-        title="管理后台"
-        subtitle="仪表盘"
-      />
-      
-      <a-divider />
-      
-      <a-row :gutter="[16, 16]">
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card hoverable>
-            <template #cover>
-              <div class="stat-icon">
-                <team-outlined />
-              </div>
-            </template>
-            <a-statistic
-              title="用户总数"
-              :value="userCount"
-              :loading="loading"
-            />
-          </a-card>
-        </a-col>
-        
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card hoverable>
-            <template #cover>
-              <div class="stat-icon">
-                <solution-outlined />
-              </div>
-            </template>
-            <a-statistic
-              title="系统角色"
-              :value="3"
-              :loading="loading"
-            />
-          </a-card>
-        </a-col>
-        
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card hoverable>
-            <template #cover>
-              <div class="stat-icon">
-                <interaction-outlined />
-              </div>
-            </template>
-            <a-statistic
-              title="今日访问"
-              :value="todayVisits"
-              :loading="loading"
-            />
-          </a-card>
-        </a-col>
-        
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card hoverable>
-            <template #cover>
-              <div class="stat-icon">
-                <file-done-outlined />
-              </div>
-            </template>
-            <a-statistic
-              title="系统消息"
-              :value="systemMessages"
-              :loading="loading"
-            />
-          </a-card>
-        </a-col>
-      </a-row>
-      
-      <a-divider />
-      
-      <a-row :gutter="[16, 16]">
-        <a-col :span="24" :lg="16">
-          <a-card title="系统概述" :bordered="false">
-            <a-empty v-if="loading" />
-            <div v-else class="overview-content">
-              <p>欢迎使用管理后台系统！</p>
-              <p>本系统使用 Vue 3, Ant Design Vue 和 Supabase 构建，具有以下功能：</p>
-              <ul>
-                <li>用户认证（登录/注册）</li>
-                <li>用户管理</li>
-                <li>权限控制</li>
-                <li>数据统计</li>
-              </ul>
-              <p>您可以在左侧菜单中选择相应的功能模块进行操作。</p>
+  <div class="dashboard-container">
+    <a-page-header
+      title="管理后台"
+      subtitle="仪表盘"
+    />
+    
+    <a-divider />
+    
+    <a-row :gutter="[16, 16]">
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card hoverable>
+          <template #cover>
+            <div class="stat-icon">
+              <team-outlined />
             </div>
-          </a-card>
-        </a-col>
-        
-        <a-col :span="24" :lg="8">
-          <a-card title="最近登录记录" :bordered="false">
-            <a-empty v-if="loading || loginRecords.length === 0" />
-            <a-list v-else>
-              <a-list-item v-for="(record, index) in loginRecords" :key="index">
-                <a-list-item-meta>
-                  <template #avatar>
-                    <a-avatar>
-                      <template #icon>
-                        <user-outlined />
-                      </template>
-                    </a-avatar>
-                  </template>
-                  <template #title>{{ record.email }}</template>
-                  <template #description>{{ record.time }}</template>
-                </a-list-item-meta>
-              </a-list-item>
-            </a-list>
-          </a-card>
-        </a-col>
-      </a-row>
-    </div>
-  </main-layout>
+          </template>
+          <a-statistic
+            title="用户总数"
+            :value="userCount"
+            :loading="loading"
+          />
+        </a-card>
+      </a-col>
+      
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card hoverable>
+          <template #cover>
+            <div class="stat-icon">
+              <solution-outlined />
+            </div>
+          </template>
+          <a-statistic
+            title="系统角色"
+            :value="3"
+            :loading="loading"
+          />
+        </a-card>
+      </a-col>
+      
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card hoverable>
+          <template #cover>
+            <div class="stat-icon">
+              <interaction-outlined />
+            </div>
+          </template>
+          <a-statistic
+            title="今日访问"
+            :value="todayVisits"
+            :loading="loading"
+          />
+        </a-card>
+      </a-col>
+      
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card hoverable>
+          <template #cover>
+            <div class="stat-icon">
+              <file-done-outlined />
+            </div>
+          </template>
+          <a-statistic
+            title="系统消息"
+            :value="systemMessages"
+            :loading="loading"
+          />
+        </a-card>
+      </a-col>
+    </a-row>
+    
+    <a-divider />
+    
+    <a-row :gutter="[16, 16]">
+      <a-col :span="24" :lg="16">
+        <a-card title="系统概述" :bordered="false">
+          <a-empty v-if="loading" />
+          <div v-else class="overview-content">
+            <p>欢迎使用管理后台系统！</p>
+            <p>本系统使用 Vue 3, Ant Design Vue 和 Supabase 构建，具有以下功能：</p>
+            <ul>
+              <li>用户认证（登录/注册）</li>
+              <li>用户管理</li>
+              <li>权限控制</li>
+              <li>数据统计</li>
+            </ul>
+            <p>您可以在左侧菜单中选择相应的功能模块进行操作。</p>
+          </div>
+        </a-card>
+      </a-col>
+      
+      <a-col :span="24" :lg="8">
+        <a-card title="最近登录记录" :bordered="false">
+          <a-empty v-if="loading || loginRecords.length === 0" />
+          <a-list v-else>
+            <a-list-item v-for="(record, index) in loginRecords" :key="index">
+              <a-list-item-meta>
+                <template #avatar>
+                  <a-avatar>
+                    <template #icon>
+                      <user-outlined />
+                    </template>
+                  </a-avatar>
+                </template>
+                <template #title>{{ record.email }}</template>
+                <template #description>{{ record.time }}</template>
+              </a-list-item-meta>
+            </a-list-item>
+          </a-list>
+        </a-card>
+      </a-col>
+    </a-row>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import MainLayout from '@/components/MainLayout.vue'
 import { 
   TeamOutlined, 
   SolutionOutlined, 

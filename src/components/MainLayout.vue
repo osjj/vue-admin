@@ -29,6 +29,24 @@
           </template>
           <span>用户管理</span>
         </a-menu-item>
+        <a-sub-menu key="products">
+          <template #icon>
+            <shopping-outlined />
+          </template>
+          <template #title>商品管理</template>
+          <a-menu-item key="product-list" @click="navigateTo('/products/list')">
+            <span>商品列表</span>
+          </a-menu-item>
+          <a-menu-item key="product-category" @click="navigateTo('/products/category')">
+            <span>分类管理</span>
+          </a-menu-item>
+          <a-menu-item key="product-brand" @click="navigateTo('/products/brand')">
+            <span>品牌管理</span>
+          </a-menu-item>
+          <a-menu-item key="product-review" @click="navigateTo('/products/review')">
+            <span>评论管理</span>
+          </a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
     <a-layout :style="{ marginLeft: collapsed ? '80px' : '250px', transition: 'margin-left 0.2s' }">
@@ -73,7 +91,7 @@
         </div>
       </a-layout-header>
       <a-layout-content class="main-content">
-        <slot></slot>
+        <router-view></router-view>
       </a-layout-content>
       <a-layout-footer class="main-footer">
         管理后台系统 {{ new Date().getFullYear() }} Created by Vue & Ant Design
@@ -91,6 +109,7 @@ import {
   MenuFoldOutlined, 
   DashboardOutlined, 
   UserOutlined,
+  ShoppingOutlined,
   DownOutlined,
   LogoutOutlined
 } from '@ant-design/icons-vue'
@@ -114,6 +133,14 @@ watch(
       selectedKeys.value = ['dashboard']
     } else if (path.startsWith('/users')) {
       selectedKeys.value = ['users']
+    } else if (path.startsWith('/products/list')) {
+      selectedKeys.value = ['product-list']
+    } else if (path.startsWith('/products/category')) {
+      selectedKeys.value = ['product-category']
+    } else if (path.startsWith('/products/brand')) {
+      selectedKeys.value = ['product-brand']
+    } else if (path.startsWith('/products/review')) {
+      selectedKeys.value = ['product-review']
     }
   },
   { immediate: true }
