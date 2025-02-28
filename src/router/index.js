@@ -13,6 +13,11 @@ const ProductList = () => import('@/views/product/ProductList.vue')
 const CategoryList = () => import('@/views/product/CategoryList.vue')
 const BrandList = () => import('@/views/product/BrandList.vue')
 const ReviewList = () => import('@/views/product/ReviewList.vue')
+const OrderManagement = () => import('@/views/order/OrderManagement.vue')
+const OrderList = () => import('@/views/order/OrderList.vue')
+const WarehouseList = () => import('@/views/order/WarehouseList.vue')
+const InventoryList = () => import('@/views/order/InventoryList.vue')
+const InventoryLog = () => import('@/views/order/InventoryLog.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 const router = createRouter({
@@ -82,6 +87,42 @@ const router = createRouter({
               path: 'review',
               name: 'product-review',
               component: ReviewList,
+              meta: { requiresAuth: true }
+            }
+          ]
+        },
+        {
+          path: 'orders',
+          name: 'orders',
+          component: OrderManagement,
+          meta: { requiresAuth: true },
+          children: [
+            {
+              path: '',
+              redirect: '/orders/list'
+            },
+            {
+              path: 'list',
+              name: 'order-list',
+              component: OrderList,
+              meta: { requiresAuth: true }
+            },
+            {
+              path: 'warehouse',
+              name: 'warehouse-list',
+              component: WarehouseList,
+              meta: { requiresAuth: true }
+            },
+            {
+              path: 'inventory',
+              name: 'inventory-list',
+              component: InventoryList,
+              meta: { requiresAuth: true }
+            },
+            {
+              path: 'inventory-log',
+              name: 'inventory-log',
+              component: InventoryLog,
               meta: { requiresAuth: true }
             }
           ]
