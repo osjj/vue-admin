@@ -32,7 +32,24 @@
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="SKU编码" name="sku_code">
-                <a-input v-model:value="formState.sku_code" placeholder="请输入SKU编码" />
+                <a-input-group compact>
+                  <a-select
+                    v-if="existingSkus.length > 0"
+                    style="width: 40%"
+                    placeholder="选择已有SKU"
+                    @change="handleSkuSelect"
+                    :options="existingSkus.map(sku => ({
+                      value: sku.id,
+                      label: sku.sku_code
+                    }))"
+                    allow-clear
+                  />
+                  <a-input 
+                    v-model:value="formState.sku_code" 
+                    placeholder="请输入SKU编码"
+                    style="width: 60%" 
+                  />
+                </a-input-group>
               </a-form-item>
             </a-col>
             <a-col :span="12">
@@ -322,6 +339,7 @@ const mainImageFileList = ref([])
 const imageFileList = ref([])
 const previewVisible = ref(false)
 const previewImage = ref('')
+const existingSkus = ref([])
 
 // 是否是编辑模式
 const isEdit = computed(() => !!props.product)
@@ -400,26 +418,59 @@ watch(
       
       // 处理图片集
       if (product.product_images && product.product_images.length > 0) {
-        imageFileList.value = product.product_images.map((img, index) => ({
-          uid: img.id || `-${index + 1}`,
-          name: `image_${index + 1}.jpg`,
-          status: 'done',
-          url: img.image_url
-        }))
+        imageFileList.value = product.product_images
+          .filter(img => !img.is_main)
+          .map((img, index) => ({
+            uid: img.id || `-${index}`,
+            name: `image_${index}.jpg`,
+            status: 'done',
+            url: img.image_url
+          }))
       } else {
         imageFileList.value = []
       }
+      
+      // 加载已有的SKU列表
+      if (product.id) {
+        loadExistingSkus(product.id)
+      }
     } else {
-      // 新增模式，重置表单
+      // 新建时重置表单
       nextTick(() => {
         formRef.value?.resetFields()
       })
-      mainImageFileList.value = []
-      imageFileList.value = []
+      existingSkus.value = []
     }
   },
   { immediate: true }
 )
+
+// 加载已有的SKU列表
+const loadExistingSkus = async (productId) => {
+  try {
+    const { data, error } = await productApi.getProductSkus({
+      productId: productId,
+      pageSize: 100
+    })
+    
+    if (error) throw error
+    
+    existingSkus.value = data || []
+  } catch (error) {
+    console.error('获取SKU列表失败:', error)
+  }
+}
+
+// 处理选择已有SKU
+const handleSkuSelect = (skuId) => {
+  if (!skuId) return
+  
+  const selectedSku = existingSkus.value.find(sku => sku.id === skuId)
+  if (selectedSku) {
+    formState.sku_code = selectedSku.sku_code
+    formState.spec_info = selectedSku.spec_info
+  }
+}
 
 // 处理取消
 const handleCancel = () => {

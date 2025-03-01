@@ -202,6 +202,74 @@ export const productApi = {
   },
   
   // 商品SKU相关方法
+  async getProductSkus(options = {}) {
+    const { page = 1, pageSize = 10, sort, productId, productName, skuCode, specInfo } = options
+    
+    try {
+      // 构建查询
+      let query = supabase
+        .from('product_skus')
+        .select(`
+          *,
+          products!product_skus_product_id_fkey(id, name)
+        `, { count: 'exact' })
+      
+      // 添加商品ID过滤
+      if (productId) {
+        query = query.eq('product_id', productId)
+      }
+      
+      // 添加SKU编码过滤
+      if (skuCode) {
+        query = query.ilike('sku_code', `%${skuCode}%`)
+      }
+      
+      // 添加规格信息过滤
+      if (specInfo) {
+        query = query.ilike('spec_info', `%${specInfo}%`)
+      }
+      
+      // 添加商品名称过滤
+      if (productName) {
+        query = query.filter('products.name', 'ilike', `%${productName}%`)
+      }
+      
+      // 添加排序
+      if (sort) {
+        const { field, order } = sort
+        if (field && order) {
+          query = query.order(field, { ascending: order === 'ascend' })
+        }
+      } else {
+        // 默认按创建时间降序排序
+        query = query.order('created_at', { ascending: false })
+      }
+      
+      // 分页
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      
+      const { data, error, count } = await query.range(from, to)
+      
+      if (error) throw error
+      
+      // 处理返回数据，将嵌套的商品信息提取出来
+      const processedData = data.map(item => {
+        const product = item.products || {}
+        return {
+          ...item,
+          product_name: product.name || '未知商品',
+          products: undefined // 移除嵌套对象
+        }
+      })
+      
+      return { data: processedData, count, error: null }
+    } catch (error) {
+      console.error('获取SKU列表失败:', error)
+      return { data: [], count: 0, error }
+    }
+  },
+  
   async addProductSku(skuData) {
     return await supabase
       .from('product_skus')
@@ -222,6 +290,97 @@ export const productApi = {
       .from('product_skus')
       .delete()
       .eq('id', id)
+  },
+  
+  async syncSkuInventory(skuId, quantity) {
+    try {
+      // 获取SKU信息
+      const { data: skuData, error: skuError } = await supabase
+        .from('product_skus')
+        .select('*')
+        .eq('id', skuId)
+        .single()
+      
+      if (skuError) throw skuError
+      
+      // 检查inventory表中是否已有该SKU的记录
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('product_id', skuData.product_id)
+        .eq('sku_id', skuId)
+        .maybeSingle()
+      
+      if (inventoryError && inventoryError.code !== 'PGRST116') throw inventoryError
+      
+      let result
+      
+      if (inventoryData) {
+        // 更新库存记录
+        const diffQuantity = quantity - inventoryData.quantity
+        
+        result = await supabase
+          .from('inventory')
+          .update({
+            quantity: quantity,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', inventoryData.id)
+        
+        // 如果库存有变化，记录库存日志
+        if (diffQuantity !== 0) {
+          await supabase
+            .from('inventory_logs')
+            .insert({
+              product_id: skuData.product_id,
+              sku_id: skuId,
+              operation_type: diffQuantity > 0 ? 1 : 3, // 1: 入库, 3: 调整
+              quantity: diffQuantity,
+              remark: '通过SKU管理调整库存',
+              created_at: new Date().toISOString()
+            })
+        }
+      } else {
+        // 创建新的库存记录
+        result = await supabase
+          .from('inventory')
+          .insert({
+            product_id: skuData.product_id,
+            sku_id: skuId,
+            quantity: quantity,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        
+        // 记录库存日志
+        if (quantity > 0) {
+          await supabase
+            .from('inventory_logs')
+            .insert({
+              product_id: skuData.product_id,
+              sku_id: skuId,
+              operation_type: 1, // 1: 入库
+              quantity: quantity,
+              remark: '通过SKU管理初始化库存',
+              created_at: new Date().toISOString()
+            })
+        }
+      }
+      
+      // 同时更新SKU表中的库存字段
+      await supabase
+        .from('product_skus')
+        .update({
+          stock: quantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', skuId)
+      
+      return { error: null }
+    } catch (error) {
+      console.error('同步SKU库存失败:', error)
+      return { error }
+    }
   },
   
   // 商品分类相关方法

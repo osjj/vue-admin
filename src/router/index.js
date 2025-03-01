@@ -13,6 +13,7 @@ const ProductList = () => import('@/views/product/ProductList.vue')
 const CategoryList = () => import('@/views/product/CategoryList.vue')
 const BrandList = () => import('@/views/product/BrandList.vue')
 const ReviewList = () => import('@/views/product/ReviewList.vue')
+const SkuList = () => import('@/views/product/SkuList.vue')
 const OrderManagement = () => import('@/views/order/OrderManagement.vue')
 const OrderList = () => import('@/views/order/OrderList.vue')
 const InventoryList = () => import('@/views/order/InventoryList.vue')
@@ -20,6 +21,7 @@ const InventoryLog = () => import('@/views/order/InventoryLog.vue')
 const SystemManagement = () => import('@/views/system/SystemManagement.vue')
 const DatabaseSetup = () => import('@/views/system/DatabaseSetup.vue')
 const TestSku = () => import('@/views/system/TestSku.vue')
+const TestProductSku = () => import('@/views/system/TestProductSku.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 const router = createRouter({
@@ -90,6 +92,12 @@ const router = createRouter({
               name: 'product-review',
               component: ReviewList,
               meta: { requiresAuth: true }
+            },
+            {
+              path: 'sku',
+              name: 'product-sku',
+              component: SkuList,
+              meta: { requiresAuth: true }
             }
           ]
         },
@@ -139,6 +147,12 @@ const router = createRouter({
               path: 'test-sku',
               name: 'test-sku',
               component: TestSku,
+              meta: { requiresAuth: true }
+            },
+            {
+              path: 'test-product-sku',
+              name: 'test-product-sku',
+              component: TestProductSku,
               meta: { requiresAuth: true }
             }
           ]

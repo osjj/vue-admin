@@ -46,6 +46,9 @@
           <a-menu-item key="product-review" @click="navigateTo('/products/review')">
             <span>评论管理</span>
           </a-menu-item>
+          <a-menu-item key="product-sku" @click="navigateTo('/products/sku')">
+            <span>SKU管理</span>
+          </a-menu-item>
         </a-sub-menu>
         <a-sub-menu key="orders">
           <template #icon>
@@ -72,6 +75,9 @@
           </a-menu-item>
           <a-menu-item key="test-sku" @click="navigateTo('/system/test-sku')">
             <span>测试SKU功能</span>
+          </a-menu-item>
+          <a-menu-item key="test-product-sku" @click="navigateTo('/system/test-product-sku')">
+            <span>商品SKU测试</span>
           </a-menu-item>
         </a-sub-menu>
       </a-menu>
@@ -170,6 +176,8 @@ watch(
       selectedKeys.value = ['product-brand']
     } else if (path.startsWith('/products/review')) {
       selectedKeys.value = ['product-review']
+    } else if (path.startsWith('/products/sku')) {
+      selectedKeys.value = ['product-sku']
     } else if (path.startsWith('/orders/list')) {
       selectedKeys.value = ['order-list']
     } else if (path.startsWith('/orders/inventory')) {
@@ -180,6 +188,8 @@ watch(
       selectedKeys.value = ['database-setup']
     } else if (path.startsWith('/system/test-sku')) {
       selectedKeys.value = ['test-sku']
+    } else if (path.startsWith('/system/test-product-sku')) {
+      selectedKeys.value = ['test-product-sku']
     }
   },
   { immediate: true }
