@@ -13,16 +13,6 @@
             allow-clear
           />
           <a-select
-            v-model:value="warehouseId"
-            placeholder="选择仓库"
-            style="width: 180px"
-            @change="handleSearch"
-          >
-            <a-select-option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-              {{ warehouse.name }}
-            </a-select-option>
-          </a-select>
-          <a-select
             v-model:value="stockFilter"
             placeholder="库存状态"
             style="width: 150px"
@@ -109,18 +99,6 @@
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="仓库" name="warehouse_id">
-          <a-select
-            v-model:value="adjustForm.warehouse_id"
-            placeholder="选择仓库"
-            :disabled="!!currentInventory"
-          >
-            <a-select-option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-              {{ warehouse.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        
         <template v-if="!currentInventory">
           <a-form-item label="商品" name="product_id">
             <a-select
@@ -190,20 +168,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { ref, reactive, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import { supabase } from '@/utils/supabase'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { inventoryApi } from '@/utils/inventoryApi'
+import { productApi } from '@/utils/productApi'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const inventoryList = ref([])
-const warehouses = ref([])
 const products = ref([])
 const productSkus = ref([])
 const searchText = ref('')
-const warehouseId = ref(null)
 const stockFilter = ref('all')
 const adjustModalVisible = ref(false)
 const confirmLoading = ref(false)
@@ -211,7 +189,6 @@ const currentInventory = ref(null)
 
 // 库存调整表单
 const adjustForm = reactive({
-  warehouse_id: null,
   product_id: null,
   sku_id: null,
   operation_type: 1,
@@ -221,7 +198,6 @@ const adjustForm = reactive({
 
 // 表单验证规则
 const rules = {
-  warehouse_id: [{ required: true, message: '请选择仓库' }],
   product_id: [{ required: true, message: '请选择商品' }],
   operation_type: [{ required: true, message: '请选择操作类型' }],
   quantity: [{ required: true, message: '请输入数量' }]
@@ -236,11 +212,6 @@ const columns = [
     dataIndex: 'product_name',
     width: 300,
     ellipsis: true
-  },
-  {
-    title: '仓库',
-    dataIndex: 'warehouse_name',
-    width: 150
   },
   {
     title: '可用库存',
@@ -301,70 +272,57 @@ const getStockStatusColor = (record) => {
 const fetchInventory = async () => {
   loading.value = true
   try {
-    let query = supabase
-      .from('inventory')
-      .select(`
-        id,
-        warehouse_id,
-        product_id,
-        sku_id,
-        quantity,
-        locked_quantity,
-        created_at,
-        updated_at,
-        warehouses(name),
-        products(name, image),
-        product_skus(code, spec_info)
-      `)
-      .order(sorter.value.field, { ascending: sorter.value.order === 'ascend' })
-
-    // 应用仓库筛选
-    if (warehouseId.value) {
-      query = query.eq('warehouse_id', warehouseId.value)
+    // 准备查询参数
+    const options = {
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+      search: searchText.value,
+      filter: {}
     }
-
+    
     // 应用库存状态筛选
     if (stockFilter.value === 'inStock') {
-      query = query.gt('quantity', 0)
+      options.filter.inStock = true
     } else if (stockFilter.value === 'lowStock') {
-      query = query.gt('quantity', 0).lte('quantity', 10)
+      options.filter.lowStock = true
     } else if (stockFilter.value === 'outOfStock') {
-      query = query.eq('quantity', 0)
+      options.filter.outOfStock = true
     }
-
-    // 应用搜索文本
-    if (searchText.value) {
-      query = query.or(`products.name.ilike.%${searchText.value}%,product_skus.code.ilike.%${searchText.value}%`)
+    
+    // 从路由参数中获取商品ID
+    const productId = route.query.product_id
+    if (productId) {
+      options.filter.product_id = Number(productId)
     }
-
-    // 分页
-    const from = (pagination.current - 1) * pagination.pageSize
-    const to = from + pagination.pageSize - 1
-    query = query.range(from, to)
-
-    const { data, error, count } = await query
-
-    if (error) throw error
-
+    
+    // 使用inventoryApi获取库存列表
+    const { data, count, error } = await inventoryApi.getInventoryList(options)
+    
+    if (error) {
+      throw error
+    }
+    
     // 格式化数据
     inventoryList.value = data.map(item => ({
       id: item.id,
-      warehouse_id: item.warehouse_id,
-      warehouse_name: item.warehouses?.name || '-',
       product_id: item.product_id,
-      product_name: item.products?.name || '-',
-      product_image: item.products?.image,
+      product_name: item.product_name || '-',
+      product_image: item.product_image || item.product_main_image,
       sku_id: item.sku_id,
-      sku_code: item.product_skus?.code,
-      spec_info: item.product_skus?.spec_info,
+      sku_code: item.sku_code,
+      spec_info: item.spec_info,
       quantity: item.quantity,
-      locked_quantity: item.locked_quantity,
-      created_at: item.created_at,
+      locked_quantity: item.locked_quantity || 0,
       updated_at: item.updated_at
     }))
-
+    
     pagination.total = count
-
+    
+    // 如果是从商品列表跳转来的，显示提示信息
+    if (productId && data.length > 0) {
+      const productName = data[0].product_name
+      message.info(`正在显示商品 "${productName}" 的库存信息`)
+    }
   } catch (error) {
     console.error('获取库存列表失败:', error)
     message.error('获取库存列表失败')
@@ -373,38 +331,12 @@ const fetchInventory = async () => {
   }
 }
 
-// 获取仓库列表
-const fetchWarehouses = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('warehouses')
-      .select('id, name')
-      .eq('status', true)
-      .order('is_default', { ascending: false })
-      .order('name')
-
-    if (error) throw error
-
-    warehouses.value = data
-    
-    // 如果有默认仓库，自动选择
-    if (data.length > 0 && !warehouseId.value) {
-      warehouseId.value = data[0].id
-    }
-  } catch (error) {
-    console.error('获取仓库列表失败:', error)
-    message.error('获取仓库列表失败')
-  }
-}
-
 // 获取商品列表
 const fetchProducts = async () => {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, name')
-      .eq('status', true)
-      .order('name')
+    const { data, error } = await productApi.getProducts({
+      status: true
+    })
 
     if (error) throw error
 
@@ -423,12 +355,10 @@ const fetchProductSkus = async (productId) => {
   }
   
   try {
-    const { data, error } = await supabase
-      .from('product_skus')
-      .select('id, code, spec_info')
-      .eq('product_id', productId)
-      .eq('status', true)
-      .order('created_at')
+    const { data, error } = await productApi.getProductSkus({
+      product_id: productId,
+      status: true
+    })
 
     if (error) throw error
 
@@ -456,7 +386,6 @@ const showAdjustModal = (inventory = null) => {
   
   // 重置表单
   Object.assign(adjustForm, {
-    warehouse_id: inventory ? inventory.warehouse_id : warehouseId.value,
     product_id: inventory ? inventory.product_id : null,
     sku_id: inventory ? inventory.sku_id : null,
     operation_type: 1,
@@ -484,45 +413,41 @@ const handleAdjustSubmit = async () => {
     
     confirmLoading.value = true
     
-    // 准备请求参数
-    const params = {
+    // 准备调整数据
+    const adjustData = {
       product_id: currentInventory.value ? currentInventory.value.product_id : adjustForm.product_id,
       sku_id: currentInventory.value ? currentInventory.value.sku_id : adjustForm.sku_id,
       operation_type: adjustForm.operation_type,
       quantity: adjustForm.quantity,
-      warehouse_id: adjustForm.warehouse_id,
       remark: adjustForm.remark
     }
     
-    // 如果是出库，数量为负数
-    if (adjustForm.operation_type === 2) {
-      params.quantity = -params.quantity
+    // 使用inventoryApi调整库存
+    const { data, error } = await inventoryApi.adjustInventory(adjustData)
+    
+    if (error) {
+      throw error
     }
-    
-    // 调用库存调整函数
-    const { data, error } = await supabase.rpc('adjust_inventory', params)
-    
-    if (error) throw error
     
     message.success('库存调整成功')
     adjustModalVisible.value = false
-    fetchInventory()
+    handleRefresh()
     
   } catch (error) {
     console.error('库存调整失败:', error)
-    message.error('库存调整失败: ' + (error.message || error))
+    message.error('库存调整失败: ' + (error.message || '未知错误'))
   } finally {
     confirmLoading.value = false
   }
 }
 
 // 查看库存记录
-const viewInventoryLog = (record) => {
+const viewInventoryLog = (inventory) => {
   router.push({
-    name: 'inventory-log',
+    path: '/orders/inventory-log',
     query: {
-      product_id: record.product_id,
-      sku_id: record.sku_id
+      product_id: inventory.product_id,
+      sku_id: inventory.sku_id
     }
   })
 }
@@ -560,7 +485,6 @@ const handleRefresh = () => {
 
 // 组件挂载时获取数据
 onMounted(() => {
-  fetchWarehouses()
   fetchProducts()
   fetchInventory()
 })

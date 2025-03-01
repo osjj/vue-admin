@@ -15,7 +15,6 @@ const BrandList = () => import('@/views/product/BrandList.vue')
 const ReviewList = () => import('@/views/product/ReviewList.vue')
 const OrderManagement = () => import('@/views/order/OrderManagement.vue')
 const OrderList = () => import('@/views/order/OrderList.vue')
-const WarehouseList = () => import('@/views/order/WarehouseList.vue')
 const InventoryList = () => import('@/views/order/InventoryList.vue')
 const InventoryLog = () => import('@/views/order/InventoryLog.vue')
 const NotFound = () => import('@/views/NotFound.vue')
@@ -105,12 +104,6 @@ const router = createRouter({
               path: 'list',
               name: 'order-list',
               component: OrderList,
-              meta: { requiresAuth: true }
-            },
-            {
-              path: 'warehouse',
-              name: 'warehouse-list',
-              component: WarehouseList,
               meta: { requiresAuth: true }
             },
             {

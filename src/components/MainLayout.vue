@@ -55,9 +55,6 @@
           <a-menu-item key="order-list" @click="navigateTo('/orders/list')">
             <span>订单列表</span>
           </a-menu-item>
-          <a-menu-item key="warehouse-list" @click="navigateTo('/orders/warehouse')">
-            <span>仓库管理</span>
-          </a-menu-item>
           <a-menu-item key="inventory-list" @click="navigateTo('/orders/inventory')">
             <span>库存管理</span>
           </a-menu-item>
@@ -162,8 +159,6 @@ watch(
       selectedKeys.value = ['product-review']
     } else if (path.startsWith('/orders/list')) {
       selectedKeys.value = ['order-list']
-    } else if (path.startsWith('/orders/warehouse')) {
-      selectedKeys.value = ['warehouse-list']
     } else if (path.startsWith('/orders/inventory')) {
       selectedKeys.value = ['inventory-list']
     } else if (path.startsWith('/orders/inventory-log')) {

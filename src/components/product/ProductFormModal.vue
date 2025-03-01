@@ -288,6 +288,7 @@ import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { productApi } from '@/utils/productApi'
+import { inventoryApi } from '@/utils/inventoryApi'
 
 // 接收的属性
 const props = defineProps({
@@ -446,6 +447,9 @@ const handleSubmit = async () => {
     // 处理图片上传
     await handleImageUpload(productId)
     
+    // 同步库存到库存表
+    await syncInventory(productId, formData.stock)
+    
     message.success(`${isEdit.value ? '更新' : '创建'}商品成功`)
     emit('success')
   } catch (error) {
@@ -453,6 +457,17 @@ const handleSubmit = async () => {
     message.error(`${isEdit.value ? '更新' : '创建'}商品失败: ${error.message || '未知错误'}`)
   } finally {
     submitting.value = false
+  }
+}
+
+// 同步库存到库存表
+const syncInventory = async (productId, stock) => {
+  try {
+    // 同步库存到库存表
+    await inventoryApi.syncProductInventory(productId, stock)
+  } catch (error) {
+    console.error('同步库存失败:', error)
+    // 不影响主流程，只记录错误
   }
 }
 

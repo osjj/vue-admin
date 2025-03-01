@@ -118,6 +118,9 @@
               <a-button type="link" size="small" @click="handleEdit(record)">
                 编辑
               </a-button>
+              <a-button type="link" size="small" @click="viewInventory(record)">
+                库存管理
+              </a-button>
               <a-button 
                 type="link" 
                 size="small" 
@@ -162,6 +165,7 @@ import {
 } from '@ant-design/icons-vue'
 import { productApi } from '@/utils/productApi'
 import ProductFormModal from '@/components/product/ProductFormModal.vue'
+import { useRouter } from 'vue-router'
 
 // 表格列定义
 const columns = [
@@ -215,8 +219,8 @@ const columns = [
   {
     title: '操作',
     dataIndex: 'action',
-    width: 180,
-    fixed: 'right',
+    width: 220,
+    fixed: 'right'
   }
 ]
 
@@ -247,6 +251,8 @@ const sorter = ref({
   field: 'created_at',
   order: 'descend'
 })
+
+const router = useRouter()
 
 // 初始化
 onMounted(async () => {
@@ -380,6 +386,17 @@ const handleDelete = async (record) => {
     console.error('删除商品失败:', error)
     message.error('删除商品失败')
   }
+}
+
+// 查看商品库存
+const viewInventory = (record) => {
+  router.push({
+    path: '/orders/inventory',
+    query: {
+      product_id: record.id,
+      product_name: record.name
+    }
+  })
 }
 
 // 处理操作成功
