@@ -89,7 +89,7 @@
           </template>
           
           <!-- 商品名称 -->
-          <template v-if="column.dataIndex === 'product_name'" #product_name>
+          <template v-if="column.dataIndex === 'product_name'">
             {{ record.product_name }}
           </template>
         </template>
@@ -120,12 +120,9 @@ const getColumns = computed(() => {
       title: '操作类型',
       dataIndex: 'operation_type',
       width: 100,
-      customRender({ text }) {
-        return h(
-          'a-tag',
-          { color: getOperationTypeColor(text) },
-          getOperationTypeText(text)
-        )
+      customRender: ({ text }) => {
+        // 使用数组作为子节点，而不是函数
+        return h('a-tag', { color: getOperationTypeColor(text) }, [getOperationTypeText(text)]);
       }
     },
     {
@@ -155,8 +152,8 @@ const getColumns = computed(() => {
       width: 180,
       sorter: true,
       defaultSortOrder: 'descend',
-      customRender({ text }) {
-        return text ? new Date(text).toLocaleString() : '-'
+      customRender: ({ text }) => {
+        return h('span', {}, [text ? new Date(text).toLocaleString() : '-']);
       }
     }
   ]
@@ -181,7 +178,7 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
   showSizeChanger: true,
-  showTotal(total) {
+  showTotal: (total) => {
     return `共 ${total} 条`
   }
 })

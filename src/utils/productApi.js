@@ -7,61 +7,127 @@ export const productApi = {
   async getProducts(options = {}) {
     const { page = 1, pageSize = 10, sort, filter, search } = options
     
-    let query = supabase
-      .from('products')
-      .select(`
-        *,
-        product_category:category_id(id, name),
-        product_brand:brand_id(id, name),
-        product_images(id, image_url, is_main)
-      `, { count: 'exact' })
-      .is('deleted_at', null)
-    
-    // 添加搜索条件
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,product_code.ilike.%${search}%,description.ilike.%${search}%`)
-    }
-    
-    // 添加过滤条件
-    if (filter) {
-      Object.entries(filter).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          query = query.eq(key, value)
+    try {
+      // 检查product_skus表是否存在
+      let hasSkuTable = false;
+      try {
+        const { data, error: tableCheckError } = await supabase
+          .from('product_skus')
+          .select('*', { count: 'exact', head: true })
+          .limit(0);
+        
+        hasSkuTable = !tableCheckError;
+      } catch (e) {
+        console.warn('检查product_skus表时出错:', e);
+      }
+      
+      // 构建查询
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          product_category:category_id(id, name),
+          product_brand:brand_id(id, name),
+          product_images(id, image_url, is_main)
+          ${hasSkuTable ? ', product_skus(id, sku_code, spec_info)' : ''}
+        `, { count: 'exact' })
+        .is('deleted_at', null)
+      
+      // 添加搜索条件
+      if (search) {
+        let searchQuery = `name.ilike.%${search}%,product_code.ilike.%${search}%,description.ilike.%${search}%`;
+        
+        // 如果SKU表存在，添加SKU搜索
+        if (hasSkuTable) {
+          searchQuery += `,product_skus.sku_code.ilike.%${search}%`;
         }
-      })
+        
+        query = query.or(searchQuery);
+      }
+      
+      // 添加过滤条件
+      if (filter) {
+        Object.entries(filter).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            query = query.eq(key, value)
+          }
+        })
+      }
+      
+      // 添加排序
+      if (sort && sort.field) {
+        query = query.order(sort.field, { ascending: sort.order === 'ascend' })
+      } else {
+        query = query.order('created_at', { ascending: false })
+      }
+      
+      // 分页
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      query = query.range(from, to)
+      
+      // 执行查询
+      const { data, error, count } = await query;
+      
+      if (error) throw error;
+      
+      // 处理数据
+      return { data, error, count };
+    } catch (error) {
+      console.error('获取商品列表失败:', error);
+      return { data: [], error, count: 0 };
     }
-    
-    // 添加排序
-    if (sort && sort.field) {
-      query = query.order(sort.field, { ascending: sort.order === 'ascend' })
-    } else {
-      query = query.order('created_at', { ascending: false })
-    }
-    
-    // 分页
-    const from = (page - 1) * pageSize
-    const to = from + pageSize - 1
-    query = query.range(from, to)
-    
-    return await query
   },
   
   // 获取单个商品
   async getProductById(id) {
-    return await supabase
-      .from('products')
-      .select(`
-        *,
-        product_category:category_id(id, name),
-        product_brand:brand_id(id, name),
-        product_images(id, image_url, alt, sort_order, is_main),
-        product_specifications(id, spec_name, spec_value, spec_image, sort_order),
-        product_skus(id, sku_code, spec_info, price, stock, image_url, barcode, status),
-        product_attribute_values(id, attribute_id, value)
-      `)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single()
+    try {
+      // 检查product_skus表是否存在
+      let hasSkuTable = false;
+      try {
+        const { data, error: tableCheckError } = await supabase
+          .from('product_skus')
+          .select('*', { count: 'exact', head: true })
+          .limit(0);
+        
+        hasSkuTable = !tableCheckError;
+      } catch (e) {
+        console.warn('检查product_skus表时出错:', e);
+      }
+      
+      // 构建查询
+      const query = supabase
+        .from('products')
+        .select(`
+          *,
+          product_category:category_id(id, name),
+          product_brand:brand_id(id, name),
+          product_images(id, image_url, alt, sort_order, is_main),
+          product_specifications(id, spec_name, spec_value, spec_image, sort_order),
+          ${hasSkuTable ? 'product_skus(id, sku_code, spec_info, price, stock, image_url, barcode, status),' : ''}
+          product_attribute_values(id, attribute_id, value)
+        `)
+        .eq('id', id)
+        .is('deleted_at', null);
+      
+      // 使用 maybeSingle() 而不是 single()，这样如果没有找到记录也不会抛出错误
+      const { data, error } = await query.maybeSingle();
+      
+      if (error) throw error;
+      
+      // 处理SKU数据
+      if (data && data.product_skus && data.product_skus.length > 0) {
+        // 使用第一个SKU的信息
+        const primarySku = data.product_skus[0];
+        data.sku_code = primarySku.sku_code;
+        data.spec_info = primarySku.spec_info;
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('获取商品详情失败:', error);
+      return { data: null, error };
+    }
   },
   
   // 创建商品

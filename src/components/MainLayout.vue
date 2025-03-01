@@ -62,6 +62,18 @@
             <span>库存日志</span>
           </a-menu-item>
         </a-sub-menu>
+        <a-sub-menu key="system">
+          <template #icon>
+            <setting-outlined />
+          </template>
+          <template #title>系统管理</template>
+          <a-menu-item key="database-setup" @click="navigateTo('/system/database')">
+            <span>数据库设置</span>
+          </a-menu-item>
+          <a-menu-item key="test-sku" @click="navigateTo('/system/test-sku')">
+            <span>测试SKU功能</span>
+          </a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
     <a-layout :style="{ marginLeft: collapsed ? '80px' : '250px', transition: 'margin-left 0.2s' }">
@@ -127,7 +139,8 @@ import {
   ShoppingOutlined,
   DownOutlined,
   LogoutOutlined,
-  ShoppingCartOutlined
+  ShoppingCartOutlined,
+  SettingOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
@@ -163,6 +176,10 @@ watch(
       selectedKeys.value = ['inventory-list']
     } else if (path.startsWith('/orders/inventory-log')) {
       selectedKeys.value = ['inventory-log']
+    } else if (path.startsWith('/system/database')) {
+      selectedKeys.value = ['database-setup']
+    } else if (path.startsWith('/system/test-sku')) {
+      selectedKeys.value = ['test-sku']
     }
   },
   { immediate: true }

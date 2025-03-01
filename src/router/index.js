@@ -17,6 +17,9 @@ const OrderManagement = () => import('@/views/order/OrderManagement.vue')
 const OrderList = () => import('@/views/order/OrderList.vue')
 const InventoryList = () => import('@/views/order/InventoryList.vue')
 const InventoryLog = () => import('@/views/order/InventoryLog.vue')
+const SystemManagement = () => import('@/views/system/SystemManagement.vue')
+const DatabaseSetup = () => import('@/views/system/DatabaseSetup.vue')
+const TestSku = () => import('@/views/system/TestSku.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 const router = createRouter({
@@ -116,6 +119,26 @@ const router = createRouter({
               path: 'inventory-log',
               name: 'inventory-log',
               component: InventoryLog,
+              meta: { requiresAuth: true }
+            }
+          ]
+        },
+        {
+          path: 'system',
+          name: 'system',
+          component: SystemManagement,
+          meta: { requiresAuth: true },
+          children: [
+            {
+              path: 'database',
+              name: 'database-setup',
+              component: DatabaseSetup,
+              meta: { requiresAuth: true }
+            },
+            {
+              path: 'test-sku',
+              name: 'test-sku',
+              component: TestSku,
               meta: { requiresAuth: true }
             }
           ]

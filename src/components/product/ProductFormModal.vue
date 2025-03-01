@@ -30,6 +30,19 @@
           </a-row>
           
           <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="SKU编码" name="sku_code">
+                <a-input v-model:value="formState.sku_code" placeholder="请输入SKU编码" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="SKU规格" name="spec_info">
+                <a-input v-model:value="formState.spec_info" placeholder="请输入SKU规格信息" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          
+          <a-row :gutter="16">
             <a-col :span="8">
               <a-form-item label="商品价格" name="price">
                 <a-input-number
@@ -335,7 +348,9 @@ const formState = reactive({
   sort_order: 0,
   is_featured: false,
   is_new: false,
-  is_hot: false
+  is_hot: false,
+  sku_code: '',
+  spec_info: ''
 })
 
 // 表单验证规则
@@ -447,8 +462,8 @@ const handleSubmit = async () => {
     // 处理图片上传
     await handleImageUpload(productId)
     
-    // 同步库存到库存表
-    await syncInventory(productId, formData.stock)
+    // 同步库存
+    await syncInventory(productId, formState.stock)
     
     message.success(`${isEdit.value ? '更新' : '创建'}商品成功`)
     emit('success')
@@ -457,17 +472,6 @@ const handleSubmit = async () => {
     message.error(`${isEdit.value ? '更新' : '创建'}商品失败: ${error.message || '未知错误'}`)
   } finally {
     submitting.value = false
-  }
-}
-
-// 同步库存到库存表
-const syncInventory = async (productId, stock) => {
-  try {
-    // 同步库存到库存表
-    await inventoryApi.syncProductInventory(productId, stock)
-  } catch (error) {
-    console.error('同步库存失败:', error)
-    // 不影响主流程，只记录错误
   }
 }
 
@@ -503,6 +507,19 @@ const handleImageUpload = async (productId) => {
         message.error('上传图片失败')
       }
     }
+  }
+}
+
+// 同步库存
+const syncInventory = async (productId, stock) => {
+  try {
+    await inventoryApi.syncProductInventory(productId, stock, {
+      sku_code: formState.sku_code,
+      spec_info: formState.spec_info
+    })
+  } catch (error) {
+    console.error('同步库存失败:', error)
+    message.error('同步库存失败')
   }
 }
 

@@ -6,7 +6,7 @@
         <a-space>
           <a-input-search
             v-model:value="searchText"
-            placeholder="搜索商品名称/编码"
+            placeholder="搜索商品名称/编码/SKU"
             style="width: 250px"
             @search="handleSearch"
             allow-clear
@@ -82,6 +82,7 @@
             <div>
               <div class="product-name">{{ record.name }}</div>
               <div class="product-code">编码: {{ record.product_code }}</div>
+              <div class="product-sku" v-if="record.sku_code">SKU: {{ record.sku_code }}</div>
             </div>
           </template>
           
@@ -243,7 +244,7 @@ const pagination = reactive({
   total: 0,
   showSizeChanger: true,
   showQuickJumper: true,
-  showTotal: (total) => `共 ${total} 条记录`,
+  showTotal: (total) => `共 ${total} 条记录`
 })
 
 // 排序配置
@@ -267,27 +268,41 @@ onMounted(async () => {
 const fetchProducts = async () => {
   loading.value = true
   try {
-    const options = {
+    const { data, error, count } = await productApi.getProducts({
       page: pagination.current,
       pageSize: pagination.pageSize,
       sort: sorter.value,
-      search: searchText.value,
       filter: {
         category_id: filterCategory.value,
         brand_id: filterBrand.value,
         status: filterStatus.value
-      }
+      },
+      search: searchText.value
+    })
+
+    if (error) {
+      console.error('获取商品列表失败:', error)
+      message.error(`获取商品列表失败: ${error.message || '未知错误'}`)
+      return
     }
+
+    // 处理商品数据
+    products.value = data.map(product => {
+      // 处理SKU信息
+      if (product.product_skus && product.product_skus.length > 0) {
+        // 使用第一个SKU的信息
+        const primarySku = product.product_skus[0]
+        product.sku_code = primarySku.sku_code
+        product.spec_info = primarySku.spec_info
+      }
+      
+      return product
+    })
     
-    const { data, count, error } = await productApi.getProducts(options)
-    
-    if (error) throw error
-    
-    products.value = data || []
-    pagination.total = count || 0
+    pagination.total = count
   } catch (error) {
     console.error('获取商品列表失败:', error)
-    message.error('获取商品列表失败')
+    message.error(`获取商品列表失败: ${error.message || '未知错误'}`)
   } finally {
     loading.value = false
   }
@@ -435,5 +450,10 @@ const handleSuccess = () => {
   font-size: 12px;
   color: #999;
   text-decoration: line-through;
+}
+
+.product-sku {
+  font-size: 12px;
+  color: #999;
 }
 </style>
