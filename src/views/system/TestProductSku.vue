@@ -101,7 +101,8 @@
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
-import { testProductSkuFunctions, ensureRpcFunctions } from '@/utils/testProductSkuFunctions'
+import { testProductSkuFunctions } from '@/utils/testProductSkuFunctions'
+import { ensureRpcFunctions } from '@/utils/ensureRpcFunctions'
 import { testProductFormSku } from '@/utils/testProductFormSku'
 import { testSkuManagement } from '@/utils/testSkuManagement'
 

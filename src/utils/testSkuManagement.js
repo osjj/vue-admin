@@ -1,4 +1,6 @@
-import { productApi } from './productApi'
+import productApi from './productApi'
+import { supabase } from './supabase'
+import { ensureRpcFunctions } from './ensureRpcFunctions'
 
 /**
  * 测试SKU管理页面功能
@@ -12,11 +14,36 @@ export const testSkuManagement = async () => {
   }
 
   try {
+    // 确保RPC函数存在
+    await ensureRpcFunctions();
+    
+    // 检查product_skus表是否存在
+    let hasSkuTable = false;
+    try {
+      const { data, error: tableCheckError } = await supabase
+        .from('product_skus')
+        .select('*', { count: 'exact', head: true })
+        .limit(0);
+      
+      hasSkuTable = !tableCheckError;
+      
+      if (!hasSkuTable) {
+        console.warn('product_skus表不存在，无法进行SKU管理测试');
+        testResults.failed.push('product_skus表不存在，请先创建表结构');
+        return testResults;
+      }
+    } catch (e) {
+      console.warn('检查product_skus表时出错:', e);
+      testResults.failed.push('检查product_skus表时出错: ' + e.message);
+      return testResults;
+    }
+
     // 1. 创建测试商品
     console.log('1. 创建测试商品')
     const testProduct = {
       name: '测试商品_SKU管理_' + Date.now(),
-      code: 'TESTMGMT' + Date.now().toString().slice(-6),
+      product_code: 'TESTMGMT' + Date.now().toString().slice(-6),
+      category_id: 1,
       description: '这是一个用于测试SKU管理页面的商品',
       price: 99.99,
       status: true
@@ -39,7 +66,6 @@ export const testSkuManagement = async () => {
       spec_info: '颜色:绿色;尺寸:XXL',
       price: 88.88,
       stock: 100,
-      stock_warning: 10,
       status: true
     }
     
@@ -57,8 +83,7 @@ export const testSkuManagement = async () => {
     const updatedSku = {
       spec_info: '颜色:紫色;尺寸:XXXL',
       price: 77.77,
-      stock: 50,
-      stock_warning: 5
+      stock: 50
     }
     
     const updateResult = await productApi.updateProductSku(skuId, updatedSku)

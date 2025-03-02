@@ -244,6 +244,7 @@
               list-type="picture-card"
               :show-upload-list="true"
               :before-upload="beforeUpload"
+              :customRequest="customRequest"
               @preview="handlePreview"
               @change="handleMainImageChange"
               :maxCount="1"
@@ -261,6 +262,7 @@
               list-type="picture-card"
               :show-upload-list="true"
               :before-upload="beforeUpload"
+              :customRequest="customRequestGallery"
               @preview="handlePreview"
               @change="handleImageChange"
             >
@@ -317,8 +319,9 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { productApi } from '@/utils/productApi'
-import { inventoryApi } from '@/utils/inventoryApi'
+import { supabase, getFileUrl } from '../../utils/supabase'
+import productApi from '../../utils/productApi'
+import { formatPrice } from '../../utils/format'
 
 // 接收的属性
 const props = defineProps({
@@ -383,14 +386,12 @@ const rules = {
 // 监听product变化，初始化表单
 watch(
   () => props.product,
-  (product) => {
+  async (product) => {
     if (product) {
-      // 重置表单
-      nextTick(() => {
-        formRef.value?.resetFields()
-      })
+      // 编辑模式，加载已有数据
+      isEdit.value = true
       
-      // 填充表单数据
+      // 复制商品数据到表单状态
       Object.keys(formState).forEach(key => {
         if (product[key] !== undefined) {
           formState[key] = product[key]
@@ -406,11 +407,16 @@ watch(
       
       // 处理主图
       if (product.main_image) {
+        // 获取签名URL用于预览
+        let imageUrl = await getFileUrl(product.main_image)
+        
         mainImageFileList.value = [{
           uid: '-1',
           name: 'main_image.jpg',
           status: 'done',
-          url: product.main_image
+          url: imageUrl,
+          // 保存原始路径用于表单提交
+          response: { url: product.main_image }
         }]
       } else {
         mainImageFileList.value = []
@@ -418,14 +424,22 @@ watch(
       
       // 处理图片集
       if (product.product_images && product.product_images.length > 0) {
-        imageFileList.value = product.product_images
-          .filter(img => !img.is_main)
-          .map((img, index) => ({
-            uid: img.id || `-${index}`,
-            name: `image_${index}.jpg`,
+        // 获取每个图片的签名URL用于预览
+        const fileList = []
+        for (const img of product.product_images.filter(img => !img.is_main)) {
+          let imageUrl = await getFileUrl(img.image_url)
+          
+          fileList.push({
+            uid: img.id || `-${fileList.length}`,
+            name: `image_${fileList.length}.jpg`,
             status: 'done',
-            url: img.image_url
-          }))
+            url: imageUrl,
+            // 保存原始路径用于表单提交
+            response: { url: img.image_url }
+          })
+        }
+        
+        imageFileList.value = fileList
       } else {
         imageFileList.value = []
       }
@@ -492,18 +506,21 @@ const handleSubmit = async () => {
       formData.tags = formData.tags.join(',')
     }
     
+    // 移除SKU相关字段，避免在创建商品时将其传递给products表
+    const { sku_code, spec_info, ...productData } = formData
+    
     // 添加时间戳
-    formData.updated_at = new Date().toISOString()
+    productData.updated_at = new Date().toISOString()
     
     let result
     
     if (isEdit.value) {
       // 更新商品
-      result = await productApi.updateProduct(props.product.id, formData)
+      result = await productApi.updateProduct(props.product.id, productData)
     } else {
       // 创建商品
-      formData.created_at = new Date().toISOString()
-      result = await productApi.createProduct(formData)
+      productData.created_at = new Date().toISOString()
+      result = await productApi.createProduct(productData)
     }
     
     if (result.error) throw result.error
@@ -513,8 +530,11 @@ const handleSubmit = async () => {
     // 处理图片上传
     await handleImageUpload(productId)
     
-    // 同步库存
-    await syncInventory(productId, formState.stock)
+    // 同步库存，传递SKU信息
+    await syncInventory(productId, formState.stock, {
+      sku_code: formState.sku_code,
+      spec_info: formState.spec_info
+    })
     
     message.success(`${isEdit.value ? '更新' : '创建'}商品成功`)
     emit('success')
@@ -529,48 +549,118 @@ const handleSubmit = async () => {
 // 处理图片上传
 const handleImageUpload = async (productId) => {
   // 处理主图
-  for (const file of mainImageFileList.value) {
-    if (file.originFileObj) {
-      try {
-        const { url } = await productApi.uploadFile(file.originFileObj, 'main')
-        await productApi.updateProduct(productId, { main_image: url })
-      } catch (error) {
-        console.error('上传主图失败:', error)
-        message.error('上传主图失败')
-      }
+  const mainImage = mainImageFileList.value.find(file => file.status === 'done' && file.response && file.response.url);
+  if (mainImage && mainImage.response && mainImage.response.url) {
+    try {
+      await productApi.updateProduct(productId, { main_image: mainImage.response.url })
+    } catch (error) {
+      console.error('更新主图失败:', error)
+      message.error('更新主图失败')
+    }
+  } else if (mainImageFileList.value.length > 0 && mainImageFileList.value[0].originFileObj) {
+    // 如果没有通过自定义上传，则使用原来的方式
+    try {
+      const { url } = await productApi.uploadFile(mainImageFileList.value[0].originFileObj, 'main')
+      await productApi.updateProduct(productId, { main_image: url })
+    } catch (error) {
+      console.error('上传主图失败:', error)
+      message.error('上传主图失败')
     }
   }
   
   // 处理图片集
-  for (const file of imageFileList.value) {
-    if (file.originFileObj) {
-      try {
-        const { url } = await productApi.uploadFile(file.originFileObj, 'gallery')
-        await productApi.addProductImage({
-          product_id: productId,
-          image_url: url,
-          alt: formState.name,
-          sort_order: 0,
-          is_main: false
-        })
-      } catch (error) {
-        console.error('上传图片失败:', error)
-        message.error('上传图片失败')
-      }
+  const galleryImages = imageFileList.value.filter(file => file.status === 'done' && file.response && file.response.url);
+  for (const image of galleryImages) {
+    try {
+      await productApi.addProductImage({
+        product_id: productId,
+        image_url: image.response.url,
+        alt: formState.name,
+        sort_order: 0,
+        is_main: false
+      })
+    } catch (error) {
+      console.error('添加图片集失败:', error)
+      message.error('添加图片集失败')
+    }
+  }
+  
+  // 处理未通过自定义上传的图片
+  const pendingImages = imageFileList.value.filter(file => file.originFileObj && (!file.status || file.status !== 'done'));
+  for (const file of pendingImages) {
+    try {
+      const { url } = await productApi.uploadFile(file.originFileObj, 'gallery')
+      await productApi.addProductImage({
+        product_id: productId,
+        image_url: url,
+        alt: formState.name,
+        sort_order: 0,
+        is_main: false
+      })
+    } catch (error) {
+      console.error('上传图片失败:', error)
+      message.error('上传图片失败')
     }
   }
 }
 
 // 同步库存
-const syncInventory = async (productId, stock) => {
+const syncInventory = async (productId, stock, skuInfo = {}) => {
   try {
     await inventoryApi.syncProductInventory(productId, stock, {
-      sku_code: formState.sku_code,
-      spec_info: formState.spec_info
+      sku_code: skuInfo.sku_code,
+      spec_info: skuInfo.spec_info
     })
   } catch (error) {
     console.error('同步库存失败:', error)
     message.error('同步库存失败')
+  }
+}
+
+// 处理预览
+const handlePreview = async (file) => {
+  // 如果是文件路径而不是完整URL，则获取签名URL
+  if (file.url && !file.url.startsWith('http')) {
+    const signedUrl = await getFileUrl(file.url)
+    previewImage.value = signedUrl
+  } else if (file.response && file.response.url && !file.response.url.startsWith('http')) {
+    const signedUrl = await getFileUrl(file.response.url)
+    previewImage.value = signedUrl
+  } else {
+    previewImage.value = file.url || file.preview || ''
+  }
+  
+  previewVisible.value = true
+}
+
+// 处理预览取消
+const handlePreviewCancel = () => {
+  previewVisible.value = false
+}
+
+// 处理主图变化
+const handleMainImageChange = ({ fileList }) => {
+  mainImageFileList.value = fileList
+  
+  // 如果有上传成功的图片，更新表单中的主图字段
+  const successFile = fileList.find(file => file.status === 'done' && file.response);
+  if (successFile && successFile.response && successFile.response.url) {
+    formState.main_image = successFile.response.url
+  }
+}
+
+// 处理图片集变化
+const handleImageChange = ({ fileList }) => {
+  imageFileList.value = fileList
+  
+  // 更新图片集数据
+  const imagePaths = imageFileList.value
+    .filter(file => file.status === 'done' && file.response && file.response.url)
+    .map(file => file.response.url);
+  
+  if (imagePaths.length > 0) {
+    // 可以在这里处理图片集数据，例如存储到formState中的某个字段
+    // formState.image_urls = imagePaths;
   }
 }
 
@@ -589,31 +679,56 @@ const beforeUpload = (file) => {
   return isImage && isLt2M ? true : false
 }
 
-// 处理主图变化
-const handleMainImageChange = ({ fileList }) => {
-  mainImageFileList.value = fileList
-  
-  // 如果有上传成功的图片，更新表单中的主图字段
-  const successFile = fileList.find(file => file.status === 'done' && file.response)
-  if (successFile && successFile.response && successFile.response.url) {
-    formState.main_image = successFile.response.url
+// 自定义上传请求 - 主图
+const customRequest = async ({ file, onSuccess, onError }) => {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `product_${Date.now()}.${fileExt}`
+    const filePath = `product_images/${fileName}`
+    
+    // 上传到Supabase存储
+    const { data, error } = await supabase.storage
+      .from('products')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+    
+    if (error) throw error
+    
+    // 只保存文件路径，不保存完整URL
+    onSuccess({ url: filePath })
+  } catch (error) {
+    console.error('上传图片失败:', error)
+    onError(error)
+    message.error('上传图片失败')
   }
 }
 
-// 处理图片集变化
-const handleImageChange = ({ fileList }) => {
-  imageFileList.value = fileList
-}
-
-// 处理图片预览
-const handlePreview = (file) => {
-  previewImage.value = file.url || file.preview
-  previewVisible.value = true
-}
-
-// 处理预览取消
-const handlePreviewCancel = () => {
-  previewVisible.value = false
+// 自定义上传请求 - 图片集
+const customRequestGallery = async ({ file, onSuccess, onError }) => {
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `gallery_${Date.now()}.${fileExt}`
+    const filePath = `gallery_images/${fileName}`
+    
+    // 上传到Supabase存储
+    const { data, error } = await supabase.storage
+      .from('products')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+    
+    if (error) throw error
+    
+    // 只保存文件路径，不保存完整URL
+    onSuccess({ url: filePath })
+  } catch (error) {
+    console.error('上传图片失败:', error)
+    onError(error)
+    message.error('上传图片失败')
+  }
 }
 </script>
 

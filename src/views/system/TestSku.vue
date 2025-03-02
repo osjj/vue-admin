@@ -89,7 +89,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { supabase } from '@/utils/supabase'
-import { productApi } from '@/utils/productApi'
+import productApi from '@/utils/productApi'
 
 // 加载状态
 const loading = reactive({

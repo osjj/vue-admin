@@ -1,4 +1,6 @@
-import { productApi } from './productApi'
+import productApi from './productApi'
+import { supabase } from './supabase'
+import { ensureRpcFunctions } from './ensureRpcFunctions'
 
 /**
  * 测试商品表单中的SKU选择功能
@@ -11,11 +13,36 @@ export const testProductFormSku = async () => {
   }
 
   try {
+    // 确保RPC函数存在
+    await ensureRpcFunctions();
+    
+    // 检查product_skus表是否存在
+    let hasSkuTable = false;
+    try {
+      const { data, error: tableCheckError } = await supabase
+        .from('product_skus')
+        .select('*', { count: 'exact', head: true })
+        .limit(0);
+      
+      hasSkuTable = !tableCheckError;
+      
+      if (!hasSkuTable) {
+        console.warn('product_skus表不存在，无法进行商品表单SKU测试');
+        testResults.failed.push('product_skus表不存在，请先创建表结构');
+        return testResults;
+      }
+    } catch (e) {
+      console.warn('检查product_skus表时出错:', e);
+      testResults.failed.push('检查product_skus表时出错: ' + e.message);
+      return testResults;
+    }
+
     // 1. 创建测试商品
     console.log('1. 创建测试商品')
     const testProduct = {
       name: '测试商品_表单SKU_' + Date.now(),
-      code: 'TESTFORM' + Date.now().toString().slice(-6),
+      product_code: 'TESTFORM' + Date.now().toString().slice(-6),
+      category_id: 1,
       description: '这是一个用于测试商品表单SKU功能的商品',
       price: 99.99,
       status: true

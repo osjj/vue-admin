@@ -7,6 +7,24 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// 获取存储文件的URL
+export function getFileUrl(path) {
+  // 如果已经是完整URL，直接返回
+  if (path && path.startsWith('http')) {
+    return Promise.resolve(path)
+  }
+  
+  // 获取签名URL（有效期设置为1小时）
+  return supabase.storage
+    .from('products')
+    .createSignedUrl(path, 3600) // 1小时 = 3600秒
+    .then(({ data }) => data?.signedUrl || '')
+    .catch(error => {
+      console.error('获取文件URL失败:', error)
+      return ''
+    })
+}
+
 // 认证相关方法
 export const auth = {
   // 邮箱密码注册

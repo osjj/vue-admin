@@ -194,7 +194,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { productApi } from '@/utils/productApi'
+import productApi from '@/utils/productApi'
 
 // 表格列定义
 const columns = [

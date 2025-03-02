@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 // 商品管理相关方法
-export const productApi = {
+const productApi = {
   // 商品相关方法
   // 获取商品列表
   async getProducts(options = {}) {
@@ -28,10 +28,11 @@ export const productApi = {
           *,
           product_category:category_id(id, name),
           product_brand:brand_id(id, name),
-          product_images(id, image_url, is_main)
+          product_images!inner(id, image_url, is_main)
           ${hasSkuTable ? ', product_skus(id, sku_code, spec_info)' : ''}
         `, { count: 'exact' })
         .is('deleted_at', null)
+        .eq('product_images.is_main', true)
       
       // 添加搜索条件
       if (search) {
@@ -72,7 +73,11 @@ export const productApi = {
       if (error) throw error;
       
       // 处理数据
-      return { data, error, count };
+      const processedData = data.map(product => ({
+        ...product,
+        main_image: product.product_images?.[0]?.image_url || null
+      }));
+      return { data: processedData, error, count };
     } catch (error) {
       console.error('获取商品列表失败:', error);
       return { data: [], error, count: 0 };
@@ -132,17 +137,23 @@ export const productApi = {
   
   // 创建商品
   async createProduct(productData) {
+    // 如果传入了sku_code字段，需要将其移除，因为products表中没有这个字段
+    const { sku_code, ...productDataWithoutSkuCode } = productData;
+    
     return await supabase
       .from('products')
-      .insert(productData)
+      .insert(productDataWithoutSkuCode)
       .select()
   },
   
   // 更新商品
   async updateProduct(id, productData) {
+    // 如果传入了sku_code字段，需要将其移除
+    const { sku_code, ...productDataWithoutSkuCode } = productData;
+    
     return await supabase
       .from('products')
-      .update(productData)
+      .update(productDataWithoutSkuCode)
       .eq('id', id)
       .select()
   },
@@ -624,11 +635,10 @@ export const productApi = {
       throw error
     }
     
-    // 获取公共URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('products')
-      .getPublicUrl(filePath)
-    
-    return { path: filePath, url: publicUrl }
+    // 只返回文件路径，不返回完整URL
+    return { path: filePath, url: filePath }
   }
 }
+
+export default productApi
+export { productApi }

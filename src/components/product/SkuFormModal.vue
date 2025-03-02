@@ -134,8 +134,8 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { productApi } from '@/utils/productApi'
-import { supabase } from '@/utils/supabase'
+import { supabase, getFileUrl } from '../../utils/supabase'
+import productApi from '../../utils/productApi'
 
 export default {
   components: {
@@ -198,7 +198,7 @@ export default {
     // 监听sku变化，初始化表单
     watch(
       () => props.sku,
-      (sku) => {
+      async (sku) => {
         if (sku) {
           // 重置表单
           nextTick(() => {
@@ -214,11 +214,16 @@ export default {
           
           // 处理图片
           if (sku.image_url) {
+            // 获取签名URL用于预览
+            let imageUrl = await getFileUrl(sku.image_url)
+            
             fileList.value = [{
               uid: '-1',
               name: 'sku_image.jpg',
               status: 'done',
-              url: sku.image_url
+              url: imageUrl,
+              // 保存原始路径用于表单提交
+              response: { url: sku.image_url }
             }]
           } else {
             fileList.value = []
@@ -309,40 +314,32 @@ export default {
         
         submitting.value = true
         
-        // 准备SKU数据
-        const skuData = { ...formState }
-        
-        // 如果有上传图片，使用上传后的URL
-        if (fileList.value.length > 0 && fileList.value[0].response) {
-          skuData.image_url = fileList.value[0].response.url
-        } else if (fileList.value.length > 0 && fileList.value[0].url) {
-          skuData.image_url = fileList.value[0].url
-        } else {
-          skuData.image_url = ''
+        // 处理图片URL
+        if (fileList.value.length > 0 && fileList.value[0].response && fileList.value[0].response.url) {
+          formState.image_url = await getFileUrl(fileList.value[0].response.url)
         }
         
-        let result
+        // 提交表单
+        const skuData = { ...formState }
         
+        let result
         if (isEdit.value) {
-          // 编辑模式
+          // 更新SKU
           result = await productApi.updateProductSku(props.sku.id, skuData)
         } else {
-          // 新建模式
+          // 创建SKU
+          skuData.created_at = new Date().toISOString()
           result = await productApi.addProductSku(skuData)
         }
         
         if (result.error) throw result.error
         
-        // 同步库存
-        if (result.data && result.data.id) {
-          await productApi.syncSkuInventory(result.data.id, skuData.stock)
-        }
-        
-        message.success(isEdit.value ? '更新SKU成功' : '添加SKU成功')
+        message.success(`${isEdit.value ? '更新' : '创建'}SKU成功`)
         emit('success')
+        handleCancel()
       } catch (error) {
-        console.error('保存SKU失败:', error)
-        message.error('保存SKU失败: ' + (error.message || '未知错误'))
+        console.error(`${isEdit.value ? '更新' : '创建'}SKU失败:`, error)
+        message.error(`${isEdit.value ? '更新' : '创建'}SKU失败: ${error.message || '未知错误'}`)
       } finally {
         submitting.value = false
       }
@@ -365,12 +362,8 @@ export default {
         
         if (error) throw error
         
-        // 获取公共URL
-        const { data: urlData } = supabase.storage
-          .from('products')
-          .getPublicUrl(filePath)
-        
-        onSuccess({ url: urlData.publicUrl })
+        // 只保存文件路径，不保存完整URL
+        onSuccess({ url: filePath })
       } catch (error) {
         console.error('上传图片失败:', error)
         onError(error)
@@ -398,13 +391,20 @@ export default {
     }
 
     // 处理图片预览
-    const handlePreview = (file) => {
-      previewImage.value = file.url || file.response?.url || ''
+    const handlePreview = async (file) => {
+      // 无论是否是http开头的URL，都通过getFileUrl处理
+      if (file.url) {
+        previewImage.value = await getFileUrl(file.url)
+      } else if (file.response && file.response.url) {
+        previewImage.value = await getFileUrl(file.response.url)
+      } else {
+        previewImage.value = file.preview || ''
+      }
+      
       previewVisible.value = true
-      previewTitle.value = file.name || 'SKU图片预览'
     }
 
-    // 处理预览取消
+    // 处理预览关闭
     const handlePreviewCancel = () => {
       previewVisible.value = false
     }

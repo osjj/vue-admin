@@ -44,6 +44,20 @@ export function formatCurrency(amount, decimals = 2, currency = '¥') {
 }
 
 /**
+ * 格式化价格
+ * @param {number} price - 价格数值
+ * @param {number} decimals - 小数位数，默认为2
+ * @param {string} currency - 货币符号，默认为'¥'
+ * @returns {string} 格式化后的价格字符串
+ */
+export function formatPrice(price, decimals = 2, currency = '¥') {
+  if (price === null || price === undefined) return '';
+  
+  const formattedPrice = Number(price).toFixed(decimals);
+  return `${currency}${formattedPrice}`;
+}
+
+/**
  * 格式化数量（添加千位分隔符）
  * @param {number} num - 数值
  * @returns {string} 格式化后的数值字符串

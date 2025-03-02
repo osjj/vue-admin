@@ -52,6 +52,18 @@
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'image_url'">
+            <a-image
+              v-if="record._image_url"
+              :src="record._image_url"
+              :width="40"
+              :height="40"
+              :preview="false"
+              style="object-fit: cover; border-radius: 4px;"
+            />
+            <span v-else>-</span>
+          </template>
+          
           <template v-if="column.dataIndex === 'product_name'">
             <a @click="viewProduct(record.product_id)">{{ record.product_name }}</a>
           </template>
@@ -109,7 +121,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
-import { productApi } from '@/utils/productApi'
+import productApi from '@/utils/productApi'
+import { getFileUrl } from '@/utils/supabase'
 import SkuFormModal from '@/components/product/SkuFormModal.vue'
 
 export default {
@@ -142,6 +155,12 @@ export default {
 
     // 表格列定义
     const columns = [
+      {
+        title: 'SKU图片',
+        dataIndex: 'image_url',
+        width: 80,
+        align: 'center'
+      },
       {
         title: '商品名称',
         dataIndex: 'product_name',
@@ -225,6 +244,18 @@ export default {
         const { data, error, count } = await productApi.getProductSkus(options)
         
         if (error) throw error
+        
+        // 处理图片URL
+        if (data && data.length > 0) {
+          for (const sku of data) {
+            if (sku.image_url) {
+              // 为每个SKU的图片获取签名URL，无论是否以http开头
+              sku._image_url = await getFileUrl(sku.image_url)
+            } else {
+              sku._image_url = ''
+            }
+          }
+        }
         
         skuList.value = data || []
         pagination.total = count || 0

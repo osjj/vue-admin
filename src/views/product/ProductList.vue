@@ -72,7 +72,7 @@
               :src="record.main_image || 'https://via.placeholder.com/80x80?text=No+Image'"
               :width="80"
               height="80"
-              :preview="true"
+              :preview="{ src: record.main_image }"
               fallback="https://via.placeholder.com/80x80?text=Error"
             />
           </template>
@@ -160,13 +160,11 @@
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { 
-  PlusOutlined, 
-  ReloadOutlined
-} from '@ant-design/icons-vue'
-import { productApi } from '@/utils/productApi'
-import ProductFormModal from '@/components/product/ProductFormModal.vue'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
+import ProductFormModal from '@/components/product/ProductFormModal.vue'
+import productApi from '@/utils/productApi'
+import { getFileUrl } from '@/utils/supabase'
 
 // 表格列定义
 const columns = [
@@ -255,6 +253,25 @@ const sorter = ref({
 
 const router = useRouter()
 
+// 获取图片URL
+const getImageUrl = async (path) => {
+  if (!path) return 'https://via.placeholder.com/80x80?text=No+Image'
+  
+  try {
+    // 如果已经是完整URL，直接返回
+    if (path.startsWith('http')) {
+      return path
+    }
+    
+    // 否则通过getFileUrl处理
+    const signedUrl = await getFileUrl(path)
+    return signedUrl || 'https://via.placeholder.com/80x80?text=Error'
+  } catch (error) {
+    console.error('获取图片URL失败:', error)
+    return 'https://via.placeholder.com/80x80?text=Error'
+  }
+}
+
 // 初始化
 onMounted(async () => {
   await Promise.all([
@@ -287,22 +304,24 @@ const fetchProducts = async () => {
     }
 
     // 处理商品数据
-    products.value = data.map(product => {
-      // 处理SKU信息
-      if (product.product_skus && product.product_skus.length > 0) {
-        // 使用第一个SKU的信息
-        const primarySku = product.product_skus[0]
-        product.sku_code = primarySku.sku_code
-        product.spec_info = primarySku.spec_info
+    const processedProducts = await Promise.all(data.map(async (product) => {
+      if (product.main_image) {
+        try {
+          product.main_image = await getImageUrl(product.main_image)
+        } catch (err) {
+          console.error('处理图片URL失败:', err)
+          product.main_image = 'https://via.placeholder.com/80x80?text=Error'
+        }
       }
-      
       return product
-    })
+    }))
     
+    products.value = processedProducts
     pagination.total = count
   } catch (error) {
     console.error('获取商品列表失败:', error)
     message.error(`获取商品列表失败: ${error.message || '未知错误'}`)
+    products.value = [] // 确保在出错时设置为空数组而不是undefined
   } finally {
     loading.value = false
   }
@@ -334,9 +353,13 @@ const fetchBrands = async () => {
 
 // 处理表格变化（分页、排序、筛选）
 const handleTableChange = (pag, filters, sort) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+  // 更新分页信息
+  if (pag) {
+    pagination.current = pag.current || 1
+    pagination.pageSize = pag.pageSize || 10
+  }
   
+  // 更新排序信息
   if (sort && sort.field) {
     sorter.value = {
       field: sort.field,
@@ -344,6 +367,7 @@ const handleTableChange = (pag, filters, sort) => {
     }
   }
   
+  // 重新获取数据
   fetchProducts()
 }
 

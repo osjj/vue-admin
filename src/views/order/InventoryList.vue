@@ -173,7 +173,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { inventoryApi } from '@/utils/inventoryApi'
-import { productApi } from '@/utils/productApi'
+import productApi from '@/utils/productApi'
 
 const router = useRouter()
 const route = useRoute()

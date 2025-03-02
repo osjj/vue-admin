@@ -200,7 +200,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
-import { productApi } from '@/utils/productApi'
+import productApi from '@/utils/productApi'
 
 // 表格列定义
 const columns = [
