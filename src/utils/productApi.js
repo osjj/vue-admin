@@ -28,7 +28,7 @@ const productApi = {
           *,
           product_category:category_id(id, name),
           product_brand:brand_id(id, name),
-          product_images!inner(id, image_url, is_main)
+          product_images(id, image_url, is_main)
           ${hasSkuTable ? ', product_skus(id, sku_code, spec_info)' : ''}
         `, { count: 'exact' })
         .is('deleted_at', null)
@@ -73,10 +73,14 @@ const productApi = {
       if (error) throw error;
       
       // 处理数据
-      const processedData = data.map(product => ({
-        ...product,
-        main_image: product.product_images?.[0]?.image_url || null
-      }));
+      const processedData = data.map(product => {
+        // 找到主图
+        const mainImage = product.product_images?.find(img => img.is_main === true);
+        return {
+          ...product,
+          main_image: mainImage?.image_url || null
+        };
+      });
       return { data: processedData, error, count };
     } catch (error) {
       console.error('获取商品列表失败:', error);

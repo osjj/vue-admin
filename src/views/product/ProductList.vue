@@ -69,10 +69,10 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.dataIndex === 'main_image'">
             <a-image
-              :src="record.main_image || 'https://via.placeholder.com/80x80?text=No+Image'"
+              :src="getImageUrl(record.main_image)"
               :width="80"
               height="80"
-              :preview="{ src: record.main_image }"
+              :preview="{ src: getImageUrl(record.main_image) }"
               fallback="https://via.placeholder.com/80x80?text=Error"
             />
           </template>
@@ -253,22 +253,40 @@ const sorter = ref({
 
 const router = useRouter()
 
+// 图片URL缓存
+const imageUrlCache = ref({})
+
 // 获取图片URL
-const getImageUrl = async (path) => {
+const getImageUrl = (path) => {
   if (!path) return 'https://via.placeholder.com/80x80?text=No+Image'
   
+  // 如果已经是完整URL，直接返回
+  if (path.startsWith('http')) {
+    return path
+  }
+  
+  // 如果已经在缓存中，直接返回缓存的URL
+  if (imageUrlCache.value[path]) {
+    return imageUrlCache.value[path]
+  }
+  
+  // 否则返回占位图，并异步获取真实URL
+  fetchImageUrl(path)
+  return 'https://via.placeholder.com/80x80?text=Loading'
+}
+
+// 异步获取图片URL并缓存
+const fetchImageUrl = async (path) => {
   try {
-    // 如果已经是完整URL，直接返回
-    if (path.startsWith('http')) {
-      return path
-    }
-    
-    // 否则通过getFileUrl处理
     const signedUrl = await getFileUrl(path)
-    return signedUrl || 'https://via.placeholder.com/80x80?text=Error'
+    if (signedUrl) {
+      imageUrlCache.value[path] = signedUrl
+    } else {
+      imageUrlCache.value[path] = 'https://via.placeholder.com/80x80?text=Error'
+    }
   } catch (error) {
     console.error('获取图片URL失败:', error)
-    return 'https://via.placeholder.com/80x80?text=Error'
+    imageUrlCache.value[path] = 'https://via.placeholder.com/80x80?text=Error'
   }
 }
 
@@ -303,20 +321,14 @@ const fetchProducts = async () => {
       return
     }
 
-    // 处理商品数据
-    const processedProducts = await Promise.all(data.map(async (product) => {
-      if (product.main_image) {
-        try {
-          product.main_image = await getImageUrl(product.main_image)
-        } catch (err) {
-          console.error('处理图片URL失败:', err)
-          product.main_image = 'https://via.placeholder.com/80x80?text=Error'
-        }
+    // 预加载所有图片URL
+    data.forEach(product => {
+      if (product.main_image && !product.main_image.startsWith('http')) {
+        fetchImageUrl(product.main_image)
       }
-      return product
-    }))
+    })
     
-    products.value = processedProducts
+    products.value = data
     pagination.total = count
   } catch (error) {
     console.error('获取商品列表失败:', error)
