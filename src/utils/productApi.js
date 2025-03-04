@@ -32,7 +32,6 @@ const productApi = {
           ${hasSkuTable ? ', product_skus(id, sku_code, spec_info)' : ''}
         `, { count: 'exact' })
         .is('deleted_at', null)
-        .eq('product_images.is_main', true)
       
       // 添加搜索条件
       if (search) {
@@ -74,11 +73,24 @@ const productApi = {
       
       // 处理数据
       const processedData = data.map(product => {
-        // 找到主图
-        const mainImage = product.product_images?.find(img => img.is_main === true);
+        // 找到主图片，如果存在
+        let mainImage = product.main_image || null;
+        
+        // 如果没有主图片但有图片集，尝试从图片集中获取
+        if (!mainImage && product.product_images && product.product_images.length > 0) {
+          // 首先尝试找到标记为主图的图片
+          const mainImageObj = product.product_images.find(img => img.is_main === true);
+          if (mainImageObj) {
+            mainImage = mainImageObj.image_url;
+          } else {
+            // 如果没有标记为主图的，使用第一张图片
+            mainImage = product.product_images[0].image_url;
+          }
+        }
+        
         return {
           ...product,
-          main_image: mainImage?.image_url || null
+          main_image: mainImage
         };
       });
       return { data: processedData, error, count };

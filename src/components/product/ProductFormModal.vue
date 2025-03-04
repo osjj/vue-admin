@@ -407,39 +407,61 @@ watch(
       
       // 处理主图
       if (product.main_image) {
-        // 获取签名URL用于预览
-        let imageUrl = await getFileUrl(product.main_image)
-        
-        mainImageFileList.value = [{
-          uid: '-1',
-          name: 'main_image.jpg',
-          status: 'done',
-          url: imageUrl,
-          // 保存原始路径用于表单提交
-          response: { url: product.main_image }
-        }]
+        try {
+          // 获取签名URL用于预览
+          let imageUrl = product.main_image;
+          
+          // 如果不是http开头的URL，则获取签名URL
+          if (!imageUrl.startsWith('http')) {
+            imageUrl = await getFileUrl(product.main_image);
+          }
+          
+          mainImageFileList.value = [{
+            uid: '-1',
+            name: 'main_image.jpg',
+            status: 'done',
+            url: imageUrl,
+            // 保存原始路径用于表单提交
+            response: { url: product.main_image }
+          }]
+        } catch (error) {
+          console.error('获取主图URL失败:', error);
+          mainImageFileList.value = [];
+        }
       } else {
         mainImageFileList.value = []
       }
       
       // 处理图片集
       if (product.product_images && product.product_images.length > 0) {
-        // 获取每个图片的签名URL用于预览
-        const fileList = []
-        for (const img of product.product_images.filter(img => !img.is_main)) {
-          let imageUrl = await getFileUrl(img.image_url)
+        try {
+          // 获取每个图片的签名URL用于预览
+          const fileList = []
+          for (const img of product.product_images.filter(img => !img.is_main)) {
+            if (!img.image_url) continue;
+            
+            let imageUrl = img.image_url;
+            
+            // 如果不是http开头的URL，则获取签名URL
+            if (!imageUrl.startsWith('http')) {
+              imageUrl = await getFileUrl(img.image_url);
+            }
+            
+            fileList.push({
+              uid: img.id || `-${fileList.length}`,
+              name: `image_${fileList.length}.jpg`,
+              status: 'done',
+              url: imageUrl,
+              // 保存原始路径用于表单提交
+              response: { url: img.image_url }
+            })
+          }
           
-          fileList.push({
-            uid: img.id || `-${fileList.length}`,
-            name: `image_${fileList.length}.jpg`,
-            status: 'done',
-            url: imageUrl,
-            // 保存原始路径用于表单提交
-            response: { url: img.image_url }
-          })
+          imageFileList.value = fileList
+        } catch (error) {
+          console.error('获取图片集URL失败:', error);
+          imageFileList.value = [];
         }
-        
-        imageFileList.value = fileList
       } else {
         imageFileList.value = []
       }
@@ -619,18 +641,23 @@ const syncInventory = async (productId, stock, skuInfo = {}) => {
 
 // 处理预览
 const handlePreview = async (file) => {
-  // 如果是文件路径而不是完整URL，则获取签名URL
-  if (file.url && !file.url.startsWith('http')) {
-    const signedUrl = await getFileUrl(file.url)
-    previewImage.value = signedUrl
-  } else if (file.response && file.response.url && !file.response.url.startsWith('http')) {
-    const signedUrl = await getFileUrl(file.response.url)
-    previewImage.value = signedUrl
-  } else {
-    previewImage.value = file.url || file.preview || ''
+  try {
+    // 如果是文件路径而不是完整URL，则获取签名URL
+    if (file.url && !file.url.startsWith('http')) {
+      const signedUrl = await getFileUrl(file.url)
+      previewImage.value = signedUrl || file.url
+    } else if (file.response && file.response.url && !file.response.url.startsWith('http')) {
+      const signedUrl = await getFileUrl(file.response.url)
+      previewImage.value = signedUrl || file.response.url
+    } else {
+      previewImage.value = file.url || file.preview || ''
+    }
+    
+    previewVisible.value = true
+  } catch (error) {
+    console.error('预览图片失败:', error)
+    message.error('预览图片失败')
   }
-  
-  previewVisible.value = true
 }
 
 // 处理预览取消
@@ -691,7 +718,7 @@ const customRequest = async ({ file, onSuccess, onError }) => {
       .from('products')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true
       })
     
     if (error) throw error
@@ -701,7 +728,7 @@ const customRequest = async ({ file, onSuccess, onError }) => {
   } catch (error) {
     console.error('上传图片失败:', error)
     onError(error)
-    message.error('上传图片失败')
+    message.error('上传图片失败: ' + error.message)
   }
 }
 
@@ -717,7 +744,7 @@ const customRequestGallery = async ({ file, onSuccess, onError }) => {
       .from('products')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true
       })
     
     if (error) throw error
@@ -727,7 +754,7 @@ const customRequestGallery = async ({ file, onSuccess, onError }) => {
   } catch (error) {
     console.error('上传图片失败:', error)
     onError(error)
-    message.error('上传图片失败')
+    message.error('上传图片失败: ' + error.message)
   }
 }
 </script>

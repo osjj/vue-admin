@@ -14,11 +14,24 @@ export function getFileUrl(path) {
     return Promise.resolve(path)
   }
   
+  // 如果路径为空，返回空字符串
+  if (!path) {
+    return Promise.resolve('')
+  }
+  
   // 获取签名URL（有效期设置为1小时）
   return supabase.storage
     .from('products')
     .createSignedUrl(path, 3600) // 1小时 = 3600秒
-    .then(({ data }) => data?.signedUrl || '')
+    .then(({ data, error }) => {
+      if (error) {
+        console.error('获取签名URL失败:', error)
+        // 如果获取签名URL失败，尝试使用公共URL
+        const publicUrl = supabase.storage.from('products').getPublicUrl(path).data?.publicUrl
+        return publicUrl || ''
+      }
+      return data?.signedUrl || ''
+    })
     .catch(error => {
       console.error('获取文件URL失败:', error)
       return ''
